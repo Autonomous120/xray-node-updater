@@ -72,12 +72,6 @@ echo "https://your-subscription-link" > .subscription
 chmod 400 .subscription
 ```
 
-Prepare template:
-
-```bash
-cp config.template.json config.json
-```
-
 Run manually:
 
 ```bash
@@ -89,7 +83,7 @@ python3 update_node.py
 # Cron Example
 
 ```cron
-22 9 * * * cd /home/username/App/Xray && /usr/bin/python3 update_node.py >> cron.log 2>&1
+30 12 * * * cd /home/username/App/Xray && /usr/bin/python3 update_node.py >> cron.log 2>&1
 ```
 
 For user-level systemd services:
@@ -107,7 +101,7 @@ Recommended permissions:
 
 ```bash
 chmod 700 update_node.py
-chmod 600 config.json
+chmod 600 *.json
 chmod 400 .subscription
 ```
 
@@ -195,12 +189,6 @@ echo "https://你的订阅链接" > .subscription
 chmod 400 .subscription
 ```
 
-准备模板：
-
-```bash
-cp config.template.json config.json
-```
-
 手动运行：
 
 ```bash
@@ -212,7 +200,7 @@ python3 update_node.py
 # Cron 定时更新示例
 
 ```cron
-22 9 * * * cd /home/username/App/Xray && /usr/bin/python3 update_node.py >> cron.log 2>&1
+30 12 * * * cd /home/username/App/Xray && /usr/bin/python3 update_node.py >> cron.log 2>&1
 ```
 
 如果使用用户级 systemd 服务：
@@ -230,7 +218,7 @@ DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 
 ```bash
 chmod 700 update_node.py
-chmod 600 config.json
+chmod 600 *.json
 chmod 400 .subscription
 ```
 ---
