@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Xray
+Exec=/bin/bash -c "/home/username/App/Xray/xray run -c /home/username/App/Xray/config.json"
+Terminal=true
+Comment=Start Xray with the specified configuration
+Categories=Network;Application;
