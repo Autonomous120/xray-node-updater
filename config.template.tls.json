@@ -1,0 +1,84 @@
+{
+  "log": {
+    "error": "/home/username/App/Xray/error.log",
+    "access": "/home/username/App/Xray/access.log",
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "port": 1080,
+      "listen": "127.0.0.1",
+      "protocol": "socks"
+    },
+    {
+      "port": 1081,
+      "listen": "127.0.0.1",
+      "protocol": "http"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct",
+      "settings": {
+        "domainStrategy": "AsIs"
+      }
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "blocked"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+          "address": "www.example.com",
+          "port": 65535,
+           "users": [
+              {
+                "id": "00000000-0000-0000-0000-000000000000",
+                "encryption": "none",
+                "flow": "xtls-rprx-vision"
+              }
+            ]
+         }
+       ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "www.example.com",
+          "allowInsecure": false
+        }
+      },
+      "tag": "proxy"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "domain": ["domain:example.com"],
+        "port": "443",
+        "outboundTag": "proxy"
+      },
+      {
+        "type": "field",
+        "domain": [
+            "domain:github.com",
+            "domain:github.io",
+            "domain:githubusercontent.com"
+        ],
+        "outboundTag": "proxy"
+      },
+      {
+        "type": "field",
+        "ip": ["192.168.1.0/28"],
+        "outboundTag": "blocked"
+      }
+    ]
+  }
+}
