@@ -111,7 +111,7 @@ def parse_vless(link):
     elif q("security") == "tls":
         outbound["streamSettings"]["tlsSettings"] = {
             "serverName": q("sni"),
-            "fingerprint": q("fp", "chrome")
+            "allowInsecure": False
         }
 
     return outbound
