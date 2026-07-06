@@ -14,7 +14,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
-TEMPLATE_FILE = BASE_DIR / "config.template.json"
+REALITY_TEMPLATE = BASE_DIR / "config.template.reality.json"
+TLS_TEMPLATE = BASE_DIR / "config.template.tls.json"
 OUTPUT_FILE = BASE_DIR / "config.json"
 SUB_FILE = BASE_DIR / ".subscription"
 XRAY_BIN = BASE_DIR / "xray"
@@ -110,11 +111,26 @@ def parse_vless(link):
 
     elif q("security") == "tls":
         outbound["streamSettings"]["tlsSettings"] = {
-            "serverName": q("sni"),
-            "allowInsecure": False
+            "serverName": q("sni")
         }
 
-    return outbound
+    return q("security"), outbound
+
+def ensure_template(security):
+
+    if security == "reality":
+        template = REALITY_TEMPLATE
+
+    elif security == "tls":
+        template = TLS_TEMPLATE
+
+    else:
+        raise Exception(f"Unsupported security: {security}")
+
+    if not OUTPUT_FILE.exists():
+        print("config.json not found")
+        print("Creating from template...")
+        shutil.copy(template, OUTPUT_FILE)
 
 def update_config(outbound):
 
@@ -169,7 +185,9 @@ def main():
 
     print("Subscription loaded")
 
-    outbound = parse_vless(link)
+    security, outbound = parse_vless(link)
+
+    ensure_template(security)
 
     update_config(outbound)
 
