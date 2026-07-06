@@ -49,8 +49,7 @@
         "network": "tcp",
         "security": "tls",
         "tlsSettings": {
-          "serverName": "www.example.com",
-          "allowInsecure": false
+          "serverName": "www.example.com"
         }
       },
       "tag": "proxy"
