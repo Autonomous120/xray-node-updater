@@ -2,7 +2,7 @@
   "log": {
     "error": "/home/username/App/Xray/error.log",
     "access": "/home/username/App/Xray/access.log",
-    "loglevel": "warning"
+    "loglevel": "error"
   },
   "inbounds": [
     {
@@ -60,7 +60,7 @@
     "rules": [
       {
         "type": "field",
-        "domain": ["domain:example.com"],
+        "domain": ["full:example.com"],
         "port": "443",
         "outboundTag": "proxy"
       },
@@ -68,7 +68,6 @@
         "type": "field",
         "domain": [
             "domain:github.com",
-            "domain:github.io",
             "domain:githubusercontent.com"
         ],
         "outboundTag": "proxy"
