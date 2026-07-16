@@ -7,15 +7,15 @@ os.umask(0o077)
 import json
 import base64
 import urllib.parse
-import socket
 import subprocess
 import shutil
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
-REALITY_TEMPLATE = BASE_DIR / "config.template.reality.json"
-TLS_TEMPLATE = BASE_DIR / "config.template.tls.json"
+HYSTERIA_TEMPLATE = BASE_DIR / "config.template.hysteria.json"
+VLESS_TLS_TEMPLATE = BASE_DIR / "config.template.vless.tls.json"
+VLESS_REALITY_TEMPLATE = BASE_DIR / "config.template.vless.reality.json"
 OUTPUT_FILE = BASE_DIR / "config.json"
 SUB_FILE = BASE_DIR / ".subscription"
 XRAY_BIN = BASE_DIR / "xray"
@@ -40,29 +40,120 @@ def load_subscription():
     )
 
     if result.returncode != 0:
-        raise Exception("curl download failed")
+        raise Exception(result.stderr.strip())
 
     raw = result.stdout.strip()
 
     if not raw:
         raise Exception("subscription is empty")
 
-    if raw.startswith("vless://"):
-        return raw
+    protocols = (
+        "hysteria2://",
+        "hy2://",
+        "vless://"
+    )
+
+    for p in protocols:
+        if raw.startswith(p):
+            return raw
+
 
     try:
         decoded = base64.b64decode(raw).decode()
 
         for line in decoded.splitlines():
+
             line = line.strip()
 
-            if line.startswith("vless://"):
-                return line
+            for p in protocols:
+                if line.startswith(p):
+                    return line
 
     except Exception as e:
         print("Base64 decode failed:", e)
 
-    raise Exception("No valid VLESS link found")
+
+    raise Exception("No supported node found")
+
+def detect_protocol(link):
+
+    if link.startswith(("hysteria2://", "hy2://")):
+        return "hysteria"
+
+    if link.startswith("vless://"):
+        qs = urllib.parse.parse_qs(
+            urllib.parse.urlparse(link).query
+        )
+
+        security = qs.get(
+            "security",
+            [""]
+        )[0]
+
+        if security == "tls":
+            return "vless_tls"
+
+        elif security == "reality":
+            return "vless_reality"
+
+    raise Exception("Unsupported protocol")
+
+def parse_hysteria(link):
+
+    parsed = urllib.parse.urlparse(link)
+
+    qs = urllib.parse.parse_qs(parsed.query)
+
+    def q(name, default=""):
+        return qs.get(name,[default])[0]
+
+    address = parsed.hostname  
+    port = parsed.port
+    print("Server:", f"{address}:{port}")
+    
+    password = parsed.username
+    
+    if not password:
+        raise Exception(
+            "Missing hysteria password"
+        )
+    
+    salamander = q("salamander-password")
+
+    if not salamander:
+        raise Exception(
+            "Missing salamander password"
+        )
+
+    outbound = {
+        "protocol": "hysteria",
+        "tag": "proxy",
+        "settings": {
+            "version": 2,
+            "address": address,
+            "port": port,
+            "auth": password
+        },
+        "streamSettings": {
+            "network": "hysteria",
+            "security": "tls",
+            "tlsSettings": {
+                "serverName": q("sni", address)
+            },
+            "finalmask": {
+                "udp": [
+                    {
+                        "type": "salamander",
+                        "settings": {
+                            "password": salamander
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+    return outbound
 
 def parse_vless(link):
     parsed = urllib.parse.urlparse(link)
@@ -70,6 +161,7 @@ def parse_vless(link):
     uuid = parsed.username
     address = parsed.hostname
     port = parsed.port
+    print("Server:", f"{address}:{port}")
 
     qs = urllib.parse.parse_qs(parsed.query)
 
@@ -99,8 +191,13 @@ def parse_vless(link):
             "security": q("security"),
         }
     }
+    
+    if q("security") == "tls":
+        outbound["streamSettings"]["tlsSettings"] = {
+            "serverName": q("sni")
+        }
 
-    if q("security") == "reality":
+    elif q("security") == "reality":
         outbound["streamSettings"]["realitySettings"] = {
             "serverName": q("sni"),
             "fingerprint": q("fp", "chrome"),
@@ -109,36 +206,30 @@ def parse_vless(link):
             "spiderX": q("spx", "/")
         }
 
-    elif q("security") == "tls":
-        outbound["streamSettings"]["tlsSettings"] = {
-            "serverName": q("sni")
-        }
+    return outbound
 
-    return q("security"), outbound
+def ensure_template(protocol):
 
-def ensure_template(security):
+    if protocol == "hysteria":
+        template = HYSTERIA_TEMPLATE
 
-    if security == "reality":
-        template = REALITY_TEMPLATE
+    elif protocol == "vless_tls":
+        template = VLESS_TLS_TEMPLATE
 
-    elif security == "tls":
-        template = TLS_TEMPLATE
+    elif protocol == "vless_reality":
+        template = VLESS_REALITY_TEMPLATE
 
     else:
-        raise Exception(f"Unsupported security: {security}")
+        raise Exception(
+            f"Unsupported protocol: {protocol}"
+        )
 
-    if not OUTPUT_FILE.exists():
-        print("config.json not found")
-        print("Creating from template...")
-        shutil.copy(template, OUTPUT_FILE)
+
+    print("Creating config from template:", template)
+
+    shutil.copy(template, OUTPUT_FILE)
 
 def update_config(outbound):
-
-    if not OUTPUT_FILE.exists():
-        print("config.json not found")
-        print("Creating from template...")
-
-        shutil.copy(TEMPLATE_FILE, OUTPUT_FILE)
 
     config = json.loads(OUTPUT_FILE.read_text())
 
@@ -168,7 +259,10 @@ def update_config(outbound):
     )
 
     if result.returncode != 0:
-        print(result.stderr)
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
         raise Exception("Xray config test failed")
 
     shutil.move(temp_file, OUTPUT_FILE)
@@ -178,16 +272,36 @@ def update_config(outbound):
     print("Config updated successfully")
 
 def restart_xray():
-    subprocess.run(["systemctl", "--user", "restart", "xray"])
+    result = subprocess.run(
+        ["systemctl", "--user", "restart", "xray"]
+    )
+
+    if result.returncode != 0:
+        raise Exception("Failed to restart xray")
 
 def main():
+
     link = load_subscription()
 
     print("Subscription loaded")
 
-    security, outbound = parse_vless(link)
 
-    ensure_template(security)
+    protocol = detect_protocol(link)
+
+
+    print(
+        "Detected protocol:",
+        protocol
+    )
+
+
+    if protocol == "hysteria":
+        outbound = parse_hysteria(link)
+    else:
+        outbound = parse_vless(link)
+
+
+    ensure_template(protocol)
 
     update_config(outbound)
 
