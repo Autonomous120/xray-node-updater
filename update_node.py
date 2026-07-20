@@ -105,10 +105,17 @@ def parse_hysteria(link):
     qs = urllib.parse.parse_qs(parsed.query)
 
     def q(name, default=""):
-        return qs.get(name,[default])[0]
+        return qs.get(name, [default])[0]
 
-    address = parsed.hostname  
+    address = parsed.hostname
     port = parsed.port
+
+    if not address or not port:
+        raise Exception(
+            "Missing hysteria server address or port"
+        )
+
+
     print("Server:", f"{address}:{port}")
     
     password = parsed.username
@@ -118,7 +125,7 @@ def parse_hysteria(link):
             "Missing hysteria password"
         )
     
-    salamander = q("salamander-password")
+    salamander = q("obfs-password")
 
     if not salamander:
         raise Exception(
@@ -131,11 +138,14 @@ def parse_hysteria(link):
         "settings": {
             "version": 2,
             "address": address,
-            "port": port,
-            "auth": password
+            "port": port
         },
         "streamSettings": {
             "network": "hysteria",
+            "hysteriaSettings": {
+                "version": 2,
+                "auth": password
+            },
             "security": "tls",
             "tlsSettings": {
                 "serverName": q("sni", address)
@@ -161,6 +171,13 @@ def parse_vless(link):
     uuid = parsed.username
     address = parsed.hostname
     port = parsed.port
+    
+    if not address or not port:
+        raise Exception(
+            "Missing vless server address or port"
+        )
+
+
     print("Server:", f"{address}:{port}")
 
     qs = urllib.parse.parse_qs(parsed.query)
