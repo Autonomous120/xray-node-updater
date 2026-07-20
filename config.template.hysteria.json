@@ -1,0 +1,86 @@
+{
+  "log": {
+    "error": "/home/username/App/Xray/error.log",
+    "access": "/home/username/App/Xray/access.log",
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "port": 1080,
+      "listen": "127.0.0.1",
+      "protocol": "socks"
+    },
+    {
+      "port": 1081,
+      "listen": "127.0.0.1",
+      "protocol": "http"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "AsIs"
+      },
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "blocked"
+    },
+    {
+      "protocol": "hysteria",
+      "settings": {
+        "version": 2,
+        "address": "hysteria.example.com",
+        "port": 65535
+      },
+      "streamSettings": {
+        "network": "hysteria",
+        "hysteriaSettings": {
+          "version": 2,
+          "auth": "password"
+        },
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "hysteria.example.com"
+        },
+        "finalmask": {
+          "udp": [
+            {
+              "type": "salamander",
+              "settings": {
+                "password": "salamander-password"
+              }
+            }
+          ]
+        }
+      },
+      "tag": "proxy"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "domain": ["full:example.com"],
+        "port": "443",
+        "outboundTag": "proxy"
+      },
+      {
+        "type": "field",
+        "domain": [
+            "domain:github.com",
+            "domain:githubusercontent.com"
+        ],
+        "outboundTag": "proxy"
+      },
+      {
+        "type": "field",
+        "ip": ["192.168.1.0/28"],
+        "outboundTag": "blocked"
+      }
+    ]
+  }
+}
